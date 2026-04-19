@@ -33,7 +33,7 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-
-CMD ["node", "server.js"]
+# Railway sets PORT at runtime. Do not bake PORT=3000 — the proxy routes to whatever PORT is.
+# Container runtimes often set HOSTNAME to the container id; Next's standalone server uses
+# process.env.HOSTNAME for bind address, so we force 0.0.0.0 at process start.
+CMD ["sh", "-c", "exec env HOSTNAME=0.0.0.0 node server.js"]

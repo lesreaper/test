@@ -16,11 +16,19 @@ This repo is a monorepo with **separate containers** for the Next.js frontend an
 
 If Railway asks for a **watch branch**, use `main` (or whatever branch you push). Each push to that branch can trigger a new build—configure **Settings → Build → Auto-deploy** per service if you want to tune that.
 
+## Config as code
+
+- **`api/railway.toml`** — used when the service **Root Directory** is `api` (recommended for the API).
+- **`web/railway.toml`** — used when the service **Root Directory** is `web` (recommended for the frontend).
+
+There is **no** `railway.json` at the repo root (it used to point every root-based build at the API image and break the web service). Prefer **Root Directory** `api` / `web` so each service picks up the right Dockerfile and start command.
+
 ## 1. Backend service
 
 1. **New service** → **GitHub Repo** → select this repository.
 2. **Settings → Build**
-   - Set **Root Directory** to repo root (`./`) with **Dockerfile Path** `Dockerfile.api`, **or** set **Root Directory** to `api` and use `api/Dockerfile`.
+   - **Recommended:** **Root Directory** `api` (uses [`api/railway.toml`](api/railway.toml) and [`api/Dockerfile`](api/Dockerfile)).
+   - **Alternative:** Root Directory **`.`** (repo root) and **Dockerfile Path** `Dockerfile.api`.
 3. **Settings → Variables**
    - `OPENAI_API_KEY` — your OpenAI secret.
    - `CORS_ORIGINS` — include your frontend’s public HTTPS origin, comma-separated if multiple (e.g. `https://your-frontend.up.railway.app`).
@@ -32,7 +40,8 @@ Railway sets `PORT`; the backend image already binds `0.0.0.0` using that variab
 
 1. **New service** → **same repository**.
 2. **Settings → Build**
-   - **Root Directory**: repo root with **Dockerfile Path** `Dockerfile.web`, **or** **Root Directory**: `web` and `web/Dockerfile`.
+   - **Recommended:** **Root Directory** `web` (uses [`web/railway.toml`](web/railway.toml) and [`web/Dockerfile`](web/Dockerfile)).
+   - **Alternative:** Root Directory **`.`** and **Dockerfile Path** `Dockerfile.web`.
 3. **Variables** (used at **build time** for `NEXT_PUBLIC_*`)
    - `NEXT_PUBLIC_API_URL` — the backend’s **public HTTPS URL** with **no trailing slash** (same value you would use from a browser).
 
@@ -44,8 +53,8 @@ Services in the same Railway project can reach each other on private URLs, but t
 
 ## 4. Local development without Docker
 
-- **Backend:** from `backend/`, create `.env` from `backend/.env.example`, then run `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`.
-- **Frontend:** from `frontend/`, create `.env.local` with `NEXT_PUBLIC_API_URL=http://localhost:8000`, then `npm run dev`.
+- **Backend:** from `api/`, create `.env` from `api/.env.example`, then run `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`.
+- **Frontend:** from `web/`, create `.env.local` with `NEXT_PUBLIC_API_URL=http://localhost:8000`, then `npm run dev`.
 
 ## 5. Local development with Docker
 
@@ -56,3 +65,10 @@ docker compose up --build
 ```
 
 Open `http://localhost:3000`. The frontend image is built with `NEXT_PUBLIC_API_URL=http://localhost:8000` so browser calls hit your published backend port on the host.
+
+## 6. Troubleshooting 502 on the frontend
+
+1. **Wrong image** — Ensure the **web** service builds **`Dockerfile.web`** or **`web/Dockerfile`**, not the API Dockerfile. If **Root Directory** was `.` and a root `railway.json` pointed at the API, the **Node** server never ran. Use **Root Directory** `web` or set the Dockerfile path explicitly.
+2. **`HOSTNAME`** — Next’s standalone Node server binds using `process.env.HOSTNAME`. Containers often set `HOSTNAME` to the container id, so the app may not listen on all interfaces. **Current Dockerfiles** start with `HOSTNAME=0.0.0.0` so the proxy can reach the app. Redeploy after pulling the latest image.
+3. **Port** — Do **not** rely on “port 3000” or “8080” in the browser. Railway injects **`PORT`**; the app must listen on that value (Next does this automatically). You do not need to set a custom port in the Railway UI for the public URL to work.
+4. **Build logs** — Open **Deployments → Build** and **Deploy logs** for the web service; a failed build or crash loop also surfaces as 502.

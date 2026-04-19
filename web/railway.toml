@@ -1,0 +1,11 @@
+# Used when the Railway service "Root Directory" is set to `web`.
+# Next.js must bind to 0.0.0.0 — container runtimes often set HOSTNAME to the pod id,
+# which would make Next listen on the wrong interface and cause 502 from Railway's proxy.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "sh -c 'HOSTNAME=0.0.0.0 exec node server.js'"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
