@@ -1,39 +1,20 @@
-# Root-level Dockerfile for Web service
-# This file delegates to web/Dockerfile but sets the correct build context
+# Build from repository root: docker build -f Dockerfile.web --build-arg NEXT_PUBLIC_API_URL=https://your-api.example.com .
+# Railway: root directory ".", Dockerfile path Dockerfile.web
 
-# Build stage
 FROM node:20-alpine AS builder
-
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Copy package files from web directory
-COPY web/package.json web/pnpm-lock.yaml* ./
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
 
-# Install dependencies
-# Use --no-frozen-lockfile if lockfile is outdated, otherwise use --frozen-lockfile for reproducibility
-RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
-
-# Copy source code from web directory
 COPY web/ .
 
-# Build Next.js app
-# Note: NEXT_PUBLIC_* variables must be set as build args for Next.js to include them
 ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_CLOUDFLARE_ACCOUNT_ID
-ARG NEXT_PUBLIC_CLOUDFLARE_IMAGES_BASE_URL
-ARG NEXT_PUBLIC_R2_PUBLIC_URL
-
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_CLOUDFLARE_ACCOUNT_ID=$NEXT_PUBLIC_CLOUDFLARE_ACCOUNT_ID
-ENV NEXT_PUBLIC_CLOUDFLARE_IMAGES_BASE_URL=$NEXT_PUBLIC_CLOUDFLARE_IMAGES_BASE_URL
-ENV NEXT_PUBLIC_R2_PUBLIC_URL=$NEXT_PUBLIC_R2_PUBLIC_URL
 
-RUN pnpm run build
+RUN npm run build
 
-# Production stage
 FROM node:20-alpine AS runner
 
 WORKDIR /app
@@ -41,22 +22,18 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create a non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
 
-# Copy necessary files from builder
-# Next.js standalone output includes public folder automatically
+COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# Ensure public directory exists (standalone should include it, but create if empty)
-RUN mkdir -p ./public || true
 
 USER nextjs
 
 EXPOSE 3000
 
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+ENV HOSTNAME=0.0.0.0
 
 CMD ["node", "server.js"]

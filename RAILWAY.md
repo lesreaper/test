@@ -20,7 +20,7 @@ If Railway asks for a **watch branch**, use `main` (or whatever branch you push)
 
 1. **New service** → **GitHub Repo** → select this repository.
 2. **Settings → Build**
-   - Set **Root Directory** to `backend`, **or** set **Dockerfile Path** to `backend/Dockerfile`.
+   - Set **Root Directory** to repo root (`./`) with **Dockerfile Path** `Dockerfile.api`, **or** set **Root Directory** to `api` and use `api/Dockerfile`.
 3. **Settings → Variables**
    - `OPENAI_API_KEY` — your OpenAI secret.
    - `CORS_ORIGINS` — include your frontend’s public HTTPS origin, comma-separated if multiple (e.g. `https://your-frontend.up.railway.app`).
@@ -32,7 +32,7 @@ Railway sets `PORT`; the backend image already binds `0.0.0.0` using that variab
 
 1. **New service** → **same repository**.
 2. **Settings → Build**
-   - **Root Directory**: `frontend`, **or** **Dockerfile Path**: `frontend/Dockerfile`.
+   - **Root Directory**: repo root with **Dockerfile Path** `Dockerfile.web`, **or** **Root Directory**: `web` and `web/Dockerfile`.
 3. **Variables** (used at **build time** for `NEXT_PUBLIC_*`)
    - `NEXT_PUBLIC_API_URL` — the backend’s **public HTTPS URL** with **no trailing slash** (same value you would use from a browser).
 

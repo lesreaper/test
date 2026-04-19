@@ -1,52 +1,41 @@
+# Local dev: API + web (no database required for the chat demo).
+# Copy .env.example to .env and set OPENAI_API_KEY before: docker compose up --build
+
 services:
   api:
     build:
       context: ./api
       dockerfile: Dockerfile
-    container_name: tests-api
+    container_name: l8-api
     environment:
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      API_URL: http://api:8000
-      FRONTEND_URL: http://localhost:3000
-      CORS_ORIGINS: http://localhost:3000,http://web:3000
-      ENVIRONMENT: production
-      # Cloudflare R2 Storage
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY in .env or your shell}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      PORT: "8000"
     ports:
       - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
     volumes:
       - ./api:/app
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    command: >
+      sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 15s
 
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8000
-        - NEXT_PUBLIC_CLOUDFLARE_IMAGES_BASE_URL=${NEXT_PUBLIC_CLOUDFLARE_IMAGES_BASE_URL:-}
-    container_name: tests-web
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    container_name: l8-web
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: http://localhost:8000
-      API_URL: http://api:8000
     ports:
       - "3000:3000"
     depends_on:
       api:
         condition: service_healthy
-    networks:
-      - default
-
-volumes:
-  postgres_data:
