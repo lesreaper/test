@@ -22,18 +22,22 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 nextjs
+# Create a non-root user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
+# Copy necessary files from builder
+# Next.js standalone output includes public folder automatically
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Ensure public directory exists (standalone should include it, but create if empty)
+RUN mkdir -p ./public || true
 
 USER nextjs
 
 EXPOSE 3000
 
-# Railway sets PORT at runtime. Do not bake PORT=3000 — the proxy routes to whatever PORT is.
-# Container runtimes often set HOSTNAME to the container id; Next's standalone server uses
-# process.env.HOSTNAME for bind address, so we force 0.0.0.0 at process start.
-CMD ["sh", "-c", "exec env HOSTNAME=0.0.0.0 node server.js"]
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
