@@ -12,29 +12,46 @@ import {
 } from "@assistant-ui/react";
 import { useMemo } from "react";
 
-function extractText(
-  parts: readonly { type: string; text?: string }[],
-): string {
+type ContentPart = { type: string; text?: string };
+
+/** Assistant-ui stores thread messages in a level-indexed array; holes are common. */
+function compactThreadMessages(
+  messages: readonly ThreadMessage[],
+): ThreadMessage[] {
+  return Array.from(messages).filter(
+    (m): m is ThreadMessage => m != null && typeof (m as ThreadMessage).role === "string",
+  );
+}
+
+function extractText(parts: readonly ContentPart[]): string {
+  if (!parts?.length) return "";
   return parts
-    .filter((p) => p.type === "text" && typeof p.text === "string")
-    .map((p) => p.text as string)
+    .map((p) => {
+      if (
+        (p.type === "text" || p.type === "reasoning") &&
+        typeof p.text === "string"
+      ) {
+        return p.text;
+      }
+      return "";
+    })
     .join("");
 }
 
 function threadMessagesToApi(messages: readonly ThreadMessage[]) {
   const out: { role: "user" | "assistant" | "system"; content: string }[] =
     [];
-  for (const m of messages) {
+  for (const m of compactThreadMessages(messages)) {
     if (m.role === "system") {
-      const t = extractText(m.content);
+      const t = extractText(m.content as readonly ContentPart[]);
       if (t) out.push({ role: "system", content: t });
       continue;
     }
     if (m.role === "user") {
-      const t = extractText(m.content);
+      const t = extractText(m.content as readonly ContentPart[]);
       if (t) out.push({ role: "user", content: t });
     } else if (m.role === "assistant") {
-      const t = extractText(m.content);
+      const t = extractText(m.content as readonly ContentPart[]);
       if (t) out.push({ role: "assistant", content: t });
     }
   }
