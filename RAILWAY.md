@@ -13,7 +13,9 @@ Both services use the **repository root** as the Docker build context so `COPY a
 
 Do **not** set Root Directory to `frontend/` or `backend/` — those paths are not used.
 
-Optional: you can instead set Root Directory to **`api`** / **`web`** and use [`api/Dockerfile`](api/Dockerfile) and [`web/Dockerfile`](web/Dockerfile) with [`api/railway.toml`](api/railway.toml) / [`web/railway.toml`](web/railway.toml).
+**Do not add a root `railway.json` for this monorepo.** A single file at the repo root applies to the whole project and will force **one** Dockerfile path and **one** start command (e.g. uvicorn on port 8000) on every service—including the **frontend**. Use the **Dockerfile `CMD`** in [`Dockerfile.api`](Dockerfile.api) and [`Dockerfile.web`](Dockerfile.web) and set **per-service** Dockerfile paths in the Railway dashboard instead.
+
+Optional: you can instead set Root Directory to **`api`** / **`web`** and use [`api/Dockerfile`](api/Dockerfile) and [`web/Dockerfile`](web/Dockerfile) with [`api/railway.toml`](api/railway.toml) / [`web/railway.toml`](web/railway.toml) (each applies only when that folder is the service root).
 
 ## Option A — Deploy via GitHub (recommended)
 
